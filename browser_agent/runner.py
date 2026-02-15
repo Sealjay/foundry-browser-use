@@ -90,7 +90,18 @@ class AgentRunner:
 
         try:
             cdp_client = self._agent.browser_session.cdp_client
-            result = await cdp_client.send.Browser.getWindowForTarget()
+            # The root CDP client requires a targetId - find a page target first
+            targets = await cdp_client.send.Target.getTargets()
+            target_id = None
+            for t in targets.get("targetInfos", []):
+                if t.get("type") == "page":
+                    target_id = t["targetId"]
+                    break
+
+            if target_id is None:
+                return None
+
+            result = await cdp_client.send.Browser.getWindowForTarget({"targetId": target_id})
             self._browser_window_id = result["windowId"]
             return self._browser_window_id
         except Exception:
