@@ -119,7 +119,7 @@ class AgentRunner:
         try:
             cdp_client = self._agent.browser_session.cdp_client
             # Must set to "normal" first, then set bounds separately
-            # (minimized/maximized/fullscreen can't combine with position/size)
+            # (minimised/maximised/fullscreen can't combine with position/size)
             await cdp_client.send.Browser.setWindowBounds({"windowId": window_id, "bounds": {"windowState": "normal"}})
         except Exception:
             pass  # Graceful fallback - don't crash if CDP fails
