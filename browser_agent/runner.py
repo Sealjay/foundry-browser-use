@@ -329,11 +329,10 @@ class AgentRunner:
             if self.session and self.state.verbose != self.session.verbose:
                 self.session.verbose = self.state.verbose
 
-        # --- Browser visibility: minimise on first step, then toggle on change ---
-        first_step = step_number == 1
+        # --- Browser visibility: toggle on change ---
         visibility_changed = self.state and self.state.browser_visible != self._last_browser_visible
 
-        if self._agent and (first_step or visibility_changed):
+        if self._agent and visibility_changed:
             if self.state and self.state.browser_visible:
                 await self._restore_browser()
             else:
@@ -365,9 +364,13 @@ class AgentRunner:
 
         # Show shortcuts reminder with current state
         if self.state:
-            browser = "visible" if self.state.browser_visible else "hidden"
-            verbose = "on" if self.state.verbose else "off"
-            self.console.print(f"  [cyan][B]rowser:{browser}  [V]erbose:{verbose}  [I]nstruct  [P]ause  [Q]uit[/cyan]")
+            browser_action = "Minimise" if self.state.browser_visible else "Show"
+            verbose_action = "Less detail" if self.state.verbose else "More detail"
+            pause_action = "Resume" if self.state.paused else "Pause"
+            shortcuts = (
+                f"[B] {browser_action} browser  [V] {verbose_action}  [I] Instruct  [P] {pause_action}  [Q] Quit"
+            )
+            self.console.print(f"  [cyan]{shortcuts}[/cyan]")
 
         # Store step start time for next iteration
         self.step_times[step_number + 1] = time.time()
@@ -613,7 +616,7 @@ class AgentRunner:
             # Build full task with optional session context
             full_task = f"{config.context_prompt}\n\nNew task: {config.task}" if config.context_prompt else config.task
 
-            # Start browser headed but minimise via CDP on the first step.
+            # Start browser headed but minimise via CDP before agent steps begin.
             # window_position=None prevents the default --window-position=0,0 arg.
             # window_size prevents --start-maximized being added automatically.
             browser_profile = BrowserProfile(
@@ -634,8 +637,11 @@ class AgentRunner:
             )
             self._agent = agent
 
-            # Run agent
+            # Pre-start browser and minimise immediately (before agent steps begin)
             self.console.print("Starting agent...")
+            await agent.browser_session.start()
+            if not (self.state and self.state.browser_visible):
+                await self._minimize_browser()
             self.console.print()
 
             result = await agent.run()

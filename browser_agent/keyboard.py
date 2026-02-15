@@ -67,17 +67,14 @@ def build_toolbar(state: AgentState) -> HTML:
     if not state.running:
         return HTML("")
 
-    browser_status = "visible" if state.browser_visible else "hidden"
-    verbose_status = "on" if state.verbose else "off"
-
     parts = [
-        f"<b>[B]</b> Browser: {browser_status}",
-        f"<b>[V]</b> Verbose: {verbose_status}",
+        f"<b>[B]</b> {'Minimise' if state.browser_visible else 'Show'} browser",
+        f"<b>[V]</b> {'Less detail' if state.verbose else 'More detail'}",
         "<b>[I]</b> Instruct",
     ]
 
     if state.paused:
-        parts.append("<b>[P]</b> Paused")
+        parts.append("<b>[P]</b> Resume")
     else:
         parts.append("<b>[P]</b> Pause")
 

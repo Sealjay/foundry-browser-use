@@ -182,7 +182,8 @@ class BrowserCLI:
             # Outside raw mode - handle instruction prompt if 'i' triggered pause
             if self.state.running and self.state.paused and self.state.pending_instruction is None:
                 try:
-                    instruction = await self.prompt_session.prompt_async("Instruction> ")
+                    with patch_stdout():
+                        instruction = await self.prompt_session.prompt_async("Instruction> ")
                     if instruction and instruction.strip():
                         self.state.pending_instruction = instruction.strip()
                 except (EOFError, KeyboardInterrupt):
@@ -205,6 +206,11 @@ class BrowserCLI:
 
         self.state.running = True
         self.state.quit_requested = False
+
+        # Show keyboard shortcuts reminder
+        self.console.print("[B] Show browser  [V] More detail  [I] Instruct  [P] Pause  [Q] Quit")
+        self.console.print()
+
         listener_task = asyncio.create_task(self._run_key_listener())
 
         try:
@@ -301,86 +307,85 @@ class BrowserCLI:
 
         refine_task: str | None = None
 
-        with patch_stdout():
+        while True:
+            # Get task from user (pre-populate with previous task if refining)
+            if refine_task:
+                self.console.print()
+                self.console.print(f"Previous task: {refine_task}")
+                refinement = Prompt.ask("How would you like to refine this?", default="")
+                task = f"{refine_task} - refined: {refinement.strip()}" if refinement.strip() else refine_task
+                refine_task = None
+            else:
+                task = await self.get_task()
+
+            if not task:
+                self.console.print("Goodbye!")
+                break
+
+            # Confirm task
+            confirmed, final_task = self.confirm_task(task)
+            if not confirmed:
+                continue
+
+            # Build session context for this task
+            context_prompt = self.session.build_context_prompt()
+
+            # Ask upfront clarifying questions
+            final_task = await self._ask_upfront_questions(final_task, context_prompt)
+
+            # Run task
+            success, result, steps, elapsed, summary, structured_data, actions_log = await self.run_task(
+                final_task, context_prompt=context_prompt
+            )
+
+            # Record task in session
+            record = TaskRecord(
+                task=final_task,
+                summary=summary,
+                structured_data=structured_data,
+                steps_taken=steps,
+                elapsed=elapsed,
+                success=success,
+                actions_log=actions_log,
+            )
+            self.session.add_record(record)
+
+            # Show results
+            self.show_results(success, result, steps, elapsed, summary, structured_data, actions_log)
+
+            # Completion menu loop (export returns here)
             while True:
-                # Get task from user (pre-populate with previous task if refining)
-                if refine_task:
-                    self.console.print()
-                    self.console.print(f"Previous task: {refine_task}")
-                    refinement = Prompt.ask("How would you like to refine this?", default="")
-                    task = f"{refine_task} - refined: {refinement.strip()}" if refinement.strip() else refine_task
-                    refine_task = None
-                else:
-                    task = await self.get_task()
+                next_action = self.get_next_action(partial=not success)
 
-                if not task:
-                    self.console.print("Goodbye!")
-                    break
-
-                # Confirm task
-                confirmed, final_task = self.confirm_task(task)
-                if not confirmed:
-                    continue
-
-                # Build session context for this task
-                context_prompt = self.session.build_context_prompt()
-
-                # Ask upfront clarifying questions
-                final_task = await self._ask_upfront_questions(final_task, context_prompt)
-
-                # Run task
-                success, result, steps, elapsed, summary, structured_data, actions_log = await self.run_task(
-                    final_task, context_prompt=context_prompt
-                )
-
-                # Record task in session
-                record = TaskRecord(
-                    task=final_task,
-                    summary=summary,
-                    structured_data=structured_data,
-                    steps_taken=steps,
-                    elapsed=elapsed,
-                    success=success,
-                    actions_log=actions_log,
-                )
-                self.session.add_record(record)
-
-                # Show results
-                self.show_results(success, result, steps, elapsed, summary, structured_data, actions_log)
-
-                # Completion menu loop (export returns here)
-                while True:
-                    next_action = self.get_next_action(partial=not success)
-
-                    if not success:
-                        # Partial menu: 1=refine, 2=new task, 3=export, 4=exit
-                        if next_action == "1":
-                            refine_task = final_task  # Carry forward for refinement
-                            break
-                        elif next_action == "2":
-                            break  # New task - back to main loop
-                        elif next_action == "3":
-                            self._handle_export()
-                            continue  # Show menu again
-                        elif next_action == "4":
-                            self.console.print()
-                            self.console.print("Goodbye!")
-                            return
-                        else:
-                            break  # Unknown - back to main loop
+                if not success:
+                    # Partial menu: 1=refine, 2=new task, 3=export, 4=exit
+                    if next_action == "1":
+                        refine_task = final_task  # Carry forward for refinement
+                        break
+                    elif next_action == "2":
+                        break  # New task - back to main loop
+                    elif next_action == "3":
+                        self._handle_export()
+                        continue  # Show menu again
+                    elif next_action == "4":
+                        self.console.print()
+                        self.console.print("Goodbye!")
+                        return
                     else:
-                        # Success menu: 1=new task, 2=export, 3=exit
-                        if next_action == "1":
-                            break  # New task - back to main loop
-                        elif next_action == "2":
-                            self._handle_export()
-                            continue  # Show menu again
-                        elif next_action == "3":
-                            self.console.print()
-                            self.console.print("Goodbye!")
-                            return
-                        else:
-                            break  # Unknown - back to main loop
+                        break  # Unknown - back to main loop
+                else:
+                    # Success menu: 1=new task, 2=export, 3=exit
+                    if next_action == "1":
+                        break  # New task - back to main loop
+                    elif next_action == "2":
+                        self._handle_export()
+                        continue  # Show menu again
+                    elif next_action == "3":
+                        self.console.print()
+                        self.console.print("Goodbye!")
+                        return
+                    else:
+                        break  # Unknown - back to main loop
 
 
 async def run_cli(verbose: bool = False) -> None:
