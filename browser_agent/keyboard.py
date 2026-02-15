@@ -1,6 +1,5 @@
 """Keyboard shortcuts and agent state for interactive browser automation."""
 
-import contextlib
 from dataclasses import dataclass
 
 from prompt_toolkit.formatted_text import HTML
@@ -54,18 +53,6 @@ class KeyHandler:
             self.console.print(f"[dim]Agent {status}[/dim]")
         elif key == "q":
             self.state.quit_requested = True
-
-    async def show_browser(self, cdp_client, window_id: int) -> None:
-        """Restore the browser window from minimised state via CDP."""
-        with contextlib.suppress(Exception):
-            await cdp_client.send.Browser.setWindowBounds({"windowId": window_id, "bounds": {"windowState": "normal"}})
-
-    async def hide_browser(self, cdp_client, window_id: int) -> None:
-        """Minimise the browser window via CDP."""
-        with contextlib.suppress(Exception):
-            await cdp_client.send.Browser.setWindowBounds(
-                {"windowId": window_id, "bounds": {"windowState": "minimized"}}
-            )
 
 
 def build_toolbar(state: AgentState) -> HTML:
