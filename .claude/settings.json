@@ -6,7 +6,7 @@
 				"hooks": [
 					{
 						"type": "command",
-						"command": "(bun run format || true) && (uv run ruff format . || true)"
+						"command": "uv run ruff format ."
 					}
 				]
 			}

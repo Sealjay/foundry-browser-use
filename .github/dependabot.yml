@@ -3,19 +3,6 @@
 
 version: 2
 updates:
-  # JavaScript/TypeScript dependencies (npm/bun)
-  - package-ecosystem: "npm"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-    open-pull-requests-limit: 10
-    commit-message:
-      prefix: "deps(npm)"
-    labels:
-      - "dependencies"
-      - "javascript"
-
   # Python dependencies (pip/uv)
   - package-ecosystem: "pip"
     directory: "/"

@@ -8,55 +8,17 @@
 
 ## Reporting a Vulnerability
 
-We take security vulnerabilities seriously. If you discover a security issue, please report it responsibly.
+If you discover a security issue, please [raise a GitHub issue](https://github.com/Sealjay/foundry-browser-use/issues) with as much detail as possible:
 
-### How to Report
+- Description of the vulnerability
+- Steps to reproduce
+- Potential impact
+- Suggested fix (if any)
 
-1. **Do not** open a public GitHub issue for security vulnerabilities
-2. Email security concerns to: [your-email@example.com]
-3. Include as much detail as possible:
-   - Description of the vulnerability
-   - Steps to reproduce
-   - Potential impact
-   - Suggested fix (if any)
+## Scope and Upstream Dependencies
 
-### What to Expect
+This project orchestrates [Microsoft Foundry](https://learn.microsoft.com/azure/ai-foundry/?WT.mc_id=AI-MVP-5004204) and [Browser Use](https://github.com/browser-use/browser-use). Security issues are unlikely to originate in this repository itself and are more likely to be in the upstream dependencies.
 
-- **Acknowledgement**: We will acknowledge receipt within 48 hours
-- **Assessment**: We will assess the vulnerability and determine its severity
-- **Resolution**: We aim to resolve critical issues within 7 days
-- **Disclosure**: We will coordinate with you on public disclosure timing
-
-### Scope
-
-This security policy applies to:
-- The main codebase
-- Dependencies managed in this repository
-- Configuration and deployment scripts
-
-### Out of Scope
-
-- Vulnerabilities in third-party dependencies (report these to the maintainers)
-- Social engineering attacks
-- Physical security issues
-
-## Security Best Practices
-
-When contributing to this project:
-
-1. **Never commit secrets** - Use environment variables and `.env` files
-2. **Keep dependencies updated** - Regularly run security audits
-3. **Follow secure coding practices** - Validate inputs, sanitize outputs
-4. **Use HTTPS** - All external communications should be encrypted
-5. **Review changes** - Security-sensitive changes require additional review
-
-## Security Features
-
-This template includes:
-- `.gitignore` configured to exclude sensitive files
-- Environment variable exclusions (`.env` files in `.gitignore`)
-- Dependabot configuration for automated security updates
-
----
-
-*Replace `[your-email@example.com]` with your actual security contact email.*
+If you believe an issue is with an upstream project:
+- **Microsoft Foundry**: Report through [Azure support](https://azure.microsoft.com/support/?WT.mc_id=AI-MVP-5004204)
+- **Browser Use**: Report on the [Browser Use GitHub repository](https://github.com/browser-use/browser-use/issues)
