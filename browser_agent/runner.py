@@ -363,6 +363,12 @@ class AgentRunner:
         status = self._format_step_status(step_number, description, elapsed)
         self.console.print(status)
 
+        # Show shortcuts reminder with current state
+        if self.state:
+            browser = "visible" if self.state.browser_visible else "hidden"
+            verbose = "on" if self.state.verbose else "off"
+            self.console.print(f"  [cyan][B]rowser:{browser}  [V]erbose:{verbose}  [I]nstruct  [P]ause  [Q]uit[/cyan]")
+
         # Store step start time for next iteration
         self.step_times[step_number + 1] = time.time()
 
