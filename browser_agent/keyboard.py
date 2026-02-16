@@ -21,6 +21,8 @@ class AgentState:
     pending_instruction: str | None = None
     quit_requested: bool = False
     running: bool = False
+    intervention_active: bool = False
+    vision_enabled: bool = False
 
 
 class KeyHandler:
@@ -68,6 +70,10 @@ class KeyHandler:
             self.state.paused = not self.state.paused
             status = "paused" if self.state.paused else "resumed"
             self.console.print(f"[dim]Agent {status}[/dim]")
+        elif key == "f":
+            self.state.vision_enabled = not self.state.vision_enabled
+            status = "on" if self.state.vision_enabled else "off"
+            self.console.print(f"[dim]Vision mode: {status} (takes effect on next task)[/dim]")
         elif key == "q":
             self.state.quit_requested = True
 
@@ -97,6 +103,7 @@ def build_toolbar(state: AgentState) -> HTML:
     parts = [
         f"<b>[B]</b> {'Minimise' if state.browser_visible else 'Show'} browser",
         f"<b>[V]</b> {'Less detail' if state.verbose else 'More detail'}",
+        f"<b>[F]</b> {'Disable' if state.vision_enabled else 'Enable'} vision",
         "<b>[I]</b> Instruct",
     ]
 
@@ -133,8 +140,10 @@ class FooterManager:
         sys.stdout.flush()
 
     def start(self) -> None:
-        """Set the scroll region and draw the initial footer."""
+        """Clear the terminal, set the scroll region, and draw the initial footer."""
         h = self._term_height()
+        # Clear screen and move cursor to top before setting scroll region
+        self._write("\033[2J\033[H")
         # Set scroll region to rows 1..(h-1), leaving the last row free
         self._write(f"\033[1;{h - 1}r")
         self._active = True
@@ -161,9 +170,13 @@ class FooterManager:
 
         browser_action = "Minimise" if self.state.browser_visible else "Show"
         verbose_action = "Less detail" if self.state.verbose else "More detail"
+        vision_action = "Disable" if self.state.vision_enabled else "Enable"
         pause_action = "Resume" if self.state.paused else "Pause"
 
-        text = f" [B] {browser_action} browser  [V] {verbose_action}  [I] Instruct  [P] {pause_action}  [Q] Quit"
+        text = (
+            f" [B] {browser_action} browser  [V] {verbose_action}  [F] {vision_action} vision"
+            f"  [I] Instruct  [P] {pause_action}  [Q] Quit"
+        )
 
         # Pad/truncate to terminal width
         text = text[:w].ljust(w)

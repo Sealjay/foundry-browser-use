@@ -2,13 +2,13 @@
 
 [![Python](https://img.shields.io/badge/Python-3.12+-3776AB?logo=python&logoColor=ffffff)](https://www.python.org/)
 [![Microsoft Foundry](https://img.shields.io/badge/Microsoft_Foundry-0078D4?logo=microsoftazure&logoColor=ffffff)](https://learn.microsoft.com/azure/ai-foundry/what-is-foundry?WT.mc_id=AI-MVP-5004204)
-[![Playwright](https://img.shields.io/badge/Playwright-2EAD33?logo=playwright&logoColor=ffffff)](https://playwright.dev/)
+[![Browser Use](https://img.shields.io/badge/Browser_Use-0.11-FF6B35?logo=googlechrome&logoColor=ffffff)](https://github.com/browser-use/browser-use)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![License: MIT](https://img.shields.io/github/license/Sealjay/foundry-browser-use)](LICENCE)
 [![GitHub issues](https://img.shields.io/github/issues/Sealjay/foundry-browser-use)](https://github.com/Sealjay/foundry-browser-use/issues)
 [![GitHub stars](https://img.shields.io/github/stars/Sealjay/foundry-browser-use?style=social)](https://github.com/Sealjay/foundry-browser-use)
 
-Interactive AI browser automation using [Browser Use](https://github.com/browser-use/browser-use) and [Microsoft Foundry](https://learn.microsoft.com/azure/ai-foundry/what-is-foundry?WT.mc_id=AI-MVP-5004204). Natural language browser agent with human-in-the-loop intervention points for authentication, verification, and confirmation. DOM-first Playwright agent powered by OpenAI models on Microsoft Foundry for web task automation.
+Interactive AI browser automation using [Browser Use](https://github.com/browser-use/browser-use) and [Microsoft Foundry](https://learn.microsoft.com/azure/ai-foundry/what-is-foundry?WT.mc_id=AI-MVP-5004204). Natural language browser agent with human-in-the-loop intervention points for authentication, verification, and confirmation. DOM-first agent powered by OpenAI models on Microsoft Foundry, controlling Chromium directly via CDP (Chrome DevTools Protocol) for web task automation.
 
 Microsoft Foundry provides managed OpenAI model hosting on Azure with enterprise features like quota management, regional deployment, and integration with Azure's identity and networking stack.
 
@@ -43,17 +43,18 @@ The agent pauses for human input only when necessary (authentication, CAPTCHA, a
 
 ### Keyboard shortcuts
 
-During agent execution, a status bar at the bottom of the terminal shows available shortcuts:
+During agent execution, a persistent footer pinned to the bottom of the terminal shows available shortcuts. B and Q respond immediately without waiting for the current agent step to finish:
 
 | Key | Action |
 |-----|--------|
 | B | Toggle browser window visibility (hidden by default) |
 | V | Toggle verbose mode on/off |
+| F | Toggle vision mode (screenshot analysis for visually complex pages) |
 | I | Send new instructions to the agent |
 | P | Pause/resume agent execution |
 | Q | Quit |
 
-The browser starts hidden (headed but offscreen) and auto-shows when authentication or CAPTCHA is needed.
+The browser starts hidden and auto-shows when authentication or CAPTCHA is needed. On macOS, hide/show uses osascript for instant response; other platforms use CDP window bounds.
 
 ### Intervention points
 
@@ -95,9 +96,11 @@ Found 3 wireless keyboards:
   2. Anker A7726 - £25.99
   3. iClever BK10 - £33.99
 
+Session log saved to: logs/browse-session-20260216-143022.md
+
 What would you like to do next?
   1. New task (with session context)
-  2. Export session summary
+  2. View session log
   3. Exit
 
 Choose [3]: 1
@@ -114,9 +117,9 @@ The agent remembers finding those keyboards and knows which two you mean.
 - **Verbose** - Full action log plus findings. Enable with `uv run python browse.py --verbose` or opt in at session start
 - **JSON** - Structured output for piping to other tools: `uv run python run_task.py --json "your task"`
 
-### Export
+### Session logs
 
-After any task, choose "Export session summary" to save a self-contained markdown file. The export includes all task summaries, structured data, and a suggested follow-up prompt formatted for Claude Code.
+Session logs are auto-saved to `logs/` after each task completes. The path is shown in dim text below the results. Choose "View session log" from the completion menu to display the full summary. Exports include all task summaries, structured data, and a suggested follow-up prompt formatted for Claude Code.
 
 ## Setup
 
@@ -145,7 +148,7 @@ cd foundry-browser-use
 uv sync
 ```
 
-3. Install Chromium for Playwright:
+3. Install Chromium (used by Browser Use via CDP):
 
 ```bash
 uv run playwright install chromium
@@ -243,7 +246,7 @@ foundry-browser-use/
     cli.py                   #   CLI orchestrator
     runner.py                #   Agent execution wrapper
     intervention.py          #   Human intervention handlers
-    keyboard.py              #   Keyboard shortcuts and agent state
+    keyboard.py              #   Keyboard shortcuts, agent state, persistent footer
     display.py               #   Result formatting
     session.py               #   Multi-turn session context
   infra/                     # Azure deployment scripts
@@ -257,9 +260,9 @@ foundry-browser-use/
 
 ## Limitations
 
-- **DOM-only mode** works best on content-heavy and form-based sites. Modern SPAs with heavily obfuscated DOMs, Shadow DOM, or Canvas/WebGL rendering may not parse well. Enable `use_vision=True` for visually complex pages at the cost of speed and tokens.
+- **DOM-only mode** works best on content-heavy and form-based sites. Modern SPAs with heavily obfuscated DOMs, Shadow DOM, or Canvas/WebGL rendering may not parse well. Press `F` during execution to toggle vision mode on, or set `use_vision=True` in code for visually complex pages (costs more tokens).
 - **Anti-bot measures**: Many websites detect and block browser automation. The agent pauses for CAPTCHAs, but persistent blocking or account flagging is possible. Respect target sites' terms of service.
-- **Platform**: Built and tested on macOS. Shell scripts, terminal features (bell, toolbar), and Playwright window positioning may behave differently on Linux or Windows/WSL.
+- **Platform**: Built and tested on macOS. Shell scripts, terminal features (bell, persistent footer), and browser window management (osascript on macOS, CDP on others) may behave differently on Linux or Windows/WSL.
 
 ## Contributing
 

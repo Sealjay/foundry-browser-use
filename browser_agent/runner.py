@@ -16,6 +16,7 @@ from rich.console import Console
 from browser_agent.intervention import (
     InterventionContext,
     InterventionHandler,
+    InterventionResponse,
     InterventionType,
 )
 from browser_agent.keyboard import AgentState, FooterManager
@@ -84,6 +85,26 @@ class AgentRunner:
         self._agent: Agent | None = None
         self._browser_window_id: int | None = None
         self._browser_app_name: str | None = None
+        self._vision_suggested: bool = False
+
+    def _run_intervention(self, context: InterventionContext) -> InterventionResponse:
+        """Run an intervention with footer suspended and raw mode released.
+
+        Sets intervention_active so the key listener exits raw mode,
+        suspends the footer so prompts render normally, then restores both.
+        """
+        if self.state:
+            self.state.intervention_active = True
+        if self.footer:
+            self.footer.stop()
+
+        try:
+            return self.intervention_handler.handle_intervention(context)
+        finally:
+            if self.footer:
+                self.footer.start()
+            if self.state:
+                self.state.intervention_active = False
 
     async def _get_browser_window_id(self) -> int | None:
         """Get the CDP window ID for the browser, caching after first call."""
@@ -462,9 +483,11 @@ class AgentRunner:
         elif self.state:
             browser_action = "Minimise" if self.state.browser_visible else "Show"
             verbose_action = "Less detail" if self.state.verbose else "More detail"
+            vision_action = "Disable" if self.state.vision_enabled else "Enable"
             pause_action = "Resume" if self.state.paused else "Pause"
             shortcuts = (
-                f"[B] {browser_action} browser  [V] {verbose_action}  [I] Instruct  [P] {pause_action}  [Q] Quit"
+                f"[B] {browser_action} browser  [V] {verbose_action}  [F] {vision_action} vision"
+                f"  [I] Instruct  [P] {pause_action}  [Q] Quit"
             )
             self.console.print(f"  [cyan]{shortcuts}[/cyan]")
 
@@ -489,7 +512,7 @@ class AgentRunner:
                 max_steps=self.max_steps,
                 confidence_detail=f"The agent seems uncertain: {evaluation_text}",
             )
-            response = self.intervention_handler.handle_intervention(context)
+            response = self._run_intervention(context)
 
             if not response.continue_execution:
                 raise KeyboardInterrupt("User aborted at confidence check")
@@ -511,7 +534,7 @@ class AgentRunner:
                 max_steps=self.max_steps,
                 progress_summary=f"Sub-goal reached at step {step_number}. Recent actions: {actions_so_far}",
             )
-            response = self.intervention_handler.handle_intervention(context)
+            response = self._run_intervention(context)
 
             if not response.continue_execution:
                 raise KeyboardInterrupt("User stopped at sub-goal")
@@ -531,7 +554,7 @@ class AgentRunner:
                     f"({self._last_phase}). Recent actions: {actions_so_far}"
                 ),
             )
-            response = self.intervention_handler.handle_intervention(context)
+            response = self._run_intervention(context)
 
             if not response.continue_execution:
                 raise KeyboardInterrupt("User stopped at checkpoint")
@@ -557,12 +580,17 @@ class AgentRunner:
                         f"Recent actions: {'; '.join(self.actions_log[-3:])}"
                     ),
                 )
-                response = self.intervention_handler.handle_intervention(context)
+                response = self._run_intervention(context)
 
                 if not response.continue_execution:
                     raise KeyboardInterrupt("User aborted at repetition check")
                 if response.new_instructions:
                     self.console.print("[yellow]New instructions received but not yet implemented[/yellow]")
+
+                # Suggest vision mode if not already enabled and not yet suggested
+                if self.state and not self.state.vision_enabled and not self._vision_suggested:
+                    self.console.print("[cyan]Tip: Press [F] to enable vision mode for visually complex pages[/cyan]")
+                    self._vision_suggested = True
 
                 self._repetition_warnings = 0
 
@@ -574,13 +602,18 @@ class AgentRunner:
                 max_steps=self.max_steps,
                 message=f"I tried to {description} but couldn't complete the action.",
             )
-            response = self.intervention_handler.handle_intervention(context)
+            response = self._run_intervention(context)
 
             if not response.continue_execution:
                 raise KeyboardInterrupt("User aborted task")
 
             if response.new_instructions:
                 self.console.print("[yellow]New instructions received but not yet implemented[/yellow]")
+
+            # Suggest vision mode if not already enabled and not yet suggested
+            if self.state and not self.state.vision_enabled and not self._vision_suggested:
+                self.console.print("[cyan]Tip: Press [F] to enable vision mode for visually complex pages[/cyan]")
+                self._vision_suggested = True
 
             # Reset failure counter after intervention
             self.consecutive_failures = 0
@@ -600,7 +633,7 @@ class AgentRunner:
                 step_number=step_number,
                 max_steps=self.max_steps,
             )
-            response = self.intervention_handler.handle_intervention(context)
+            response = self._run_intervention(context)
 
             if not response.continue_execution:
                 raise KeyboardInterrupt("User stopped task at step limit")
@@ -698,6 +731,7 @@ class AgentRunner:
             self.step_times = {}
             self._browser_window_id = None
             self._browser_app_name = None
+            self._vision_suggested = False
 
             # Load Azure OpenAI configuration
             llm = self._load_config()

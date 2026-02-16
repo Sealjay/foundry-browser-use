@@ -170,4 +170,18 @@ The following behaviours should be verified to prevent regression:
 ### Auto-save session logs
 - Session logs are saved to `logs/` automatically after each task completes
 - Log path displayed in dim text after results
-- "Export session summary" renamed to "View/export session summary" in completion menu
+- "Export session summary" renamed to "View session log" in completion menu
+
+### Terminal clear on agent start
+- `FooterManager.start()` clears the terminal (`\033[2J\033[H`) before setting the scroll region
+- Prevents fragments from the verbose prompt or greeting lingering on screen
+
+### Intervention prompt handling
+- Added `intervention_active` flag to `AgentState`
+- Key listener exits raw mode when an intervention is active, so `Prompt.ask()` can read stdin normally
+- `_run_intervention()` helper in runner suspends the footer and sets the flag before calling the handler, restores both in a `finally` block
+
+### Log noise suppression
+- `bubus` logger set to `CRITICAL` in `browse.py` to silence event bus timeout tracebacks
+- `BrowserSession` and `watchdog_base` loggers set to `WARNING`
+- Screenshot timeouts on heavy pages are recoverable and no longer clutter the output

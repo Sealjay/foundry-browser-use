@@ -3,8 +3,15 @@
 
 import argparse
 import asyncio
+import logging
 
 from browser_agent.cli import run_cli
+
+# Suppress noisy tracebacks from browser-use's internal event bus and watchdogs.
+# Screenshot timeouts on heavy pages are recoverable and clutter the output.
+logging.getLogger("bubus").setLevel(logging.CRITICAL)
+logging.getLogger("browser_use.browser.watchdog_base").setLevel(logging.WARNING)
+logging.getLogger("BrowserSession").setLevel(logging.WARNING)
 
 
 def main() -> None:

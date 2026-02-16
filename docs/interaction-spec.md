@@ -405,41 +405,45 @@ All intervention prompts (3.1-3.10) ring the terminal bell (`\a`) to alert the u
 
 ## 4. Keyboard Shortcuts
 
-During agent execution, a persistent status bar at the bottom of the terminal shows available keyboard shortcuts. The status bar updates dynamically to reflect the current state (e.g., "Browser: visible" after pressing B).
+During agent execution, a persistent footer pinned to the bottom terminal row shows available keyboard shortcuts. The footer uses ANSI escape sequences to set a scroll region excluding the last row, so agent output scrolls above while the shortcut bar stays fixed. The footer updates dynamically on each keypress and after each agent step.
+
+When the agent starts, the terminal is cleared to remove any fragments from the greeting or verbose prompt.
 
 ### Terminal layout during execution
 
 ```
 Step 3/25: Searching for 'USB-C hub' (1.2s)       <- Rich output (scrolls)
 Step 4/25: Loading results (2.1s)
-
-[B] Browser: hidden  [V] Verbose: off  [I] Instruct  [P] Pause  [Q] Quit
+                                                    <- scroll region ends here
+ [B] Show browser  [V] More detail  [I] Instruct  [P] Pause  [Q] Quit
 ```
 
-The status bar sits at the bottom of the terminal. Agent step output scrolls above it. The bar re-renders on each keypress to reflect the current state.
+The footer is rendered in reverse video for visibility. Labels update to reflect current state (e.g., "Minimise" when browser is visible, "Show" when hidden).
 
 ### Key reference
 
 | Key | Action | Behaviour on press |
 |-----|--------|--------------------|
-| B | Toggle browser visibility | Toggles the browser window between visible and hidden. The window starts offscreen (headed but positioned at -9999, -9999) and is moved to (100, 100) when shown. When hidden again, it moves back offscreen. |
+| B | Toggle browser visibility | Fires immediately via async callback - no waiting for the next agent step. On macOS, uses osascript to hide (like Cmd+H) or activate the browser. Falls back to CDP `setWindowBounds` on other platforms. |
 | V | Toggle verbose mode | Switches verbose output on or off mid-run. When toggled on, the agent shows full action details for each step. A confirmation line is printed (e.g., "Verbose: on"). |
 | I | Send new instructions | Pauses execution and opens a text prompt for the user to type new instructions. The instructions are queued and injected into the next agent step's context prompt. Execution resumes automatically after the user submits. |
-| P | Pause/resume | Pauses agent execution after the current step completes. Press P again to resume. While paused, a "Paused" indicator appears in the status bar. |
-| Q | Quit | Requests the agent to stop. Execution halts and partial results are shown. |
+| P | Pause/resume | Pauses agent execution after the current step completes. Press P again to resume. While paused, a "Paused" indicator appears in the footer. |
+| Q | Quit | Fires immediately via async callback - cancels the agent task without waiting for the current step to finish. Partial results are shown. |
 
 ### Browser window management
 
-The browser starts hidden by default - Chromium launches in headed mode but positioned offscreen so the window is not visible. This keeps the terminal experience clean while still allowing full browser interaction when needed.
+The browser starts hidden by default - Chromium launches in headed mode and is hidden via osascript on macOS (or minimised via CDP on other platforms). This keeps the terminal experience clean while still allowing full browser interaction when needed.
 
-When an intervention requiring the browser fires (authentication or CAPTCHA - see sections 3.1 and 3.2), the browser window is automatically moved onscreen and the terminal bell rings. After the intervention resolves, the window moves back offscreen unless the user has manually toggled it visible with B.
+On macOS, osascript `System Events` hides the process instantly (no Dock animation). Restore uses osascript `activate`, which reliably brings even minimised/hidden windows back. CDP `setWindowBounds` is kept as a fallback for Linux/Windows, or if osascript fails.
+
+When an intervention requiring the browser fires (authentication or CAPTCHA - see sections 3.1 and 3.2), the browser window is automatically shown and the terminal bell rings. After the intervention resolves, the window hides again unless the user has manually toggled it visible with B.
 
 ### When shortcuts are active
 
 Keyboard shortcuts are only active during agent execution (while steps are running). They are not active during:
 
 - Task input prompts (the initial "What would you like to do?" prompt)
-- Intervention prompts (numbered choice menus, confirmation prompts)
+- Intervention prompts (numbered choice menus, confirmation prompts) - the key listener releases raw mode and the footer is suspended so `Prompt.ask()` works normally
 - Post-task menus (the "What would you like to do next?" options)
 
 During these prompts, normal text input and number selection work as described in their respective sections.
@@ -459,9 +463,11 @@ Results:
   Price: £15.99
   Link: https://www.amazon.co.uk/dp/B0EXAMPLE
 
+Session log saved to: logs/browse-session-20260216-143022.md
+
 What would you like to do next?
   1. New task (with session context)
-  2. Export session summary
+  2. View session log
   3. Exit
 
 Choose [3]:
@@ -472,8 +478,9 @@ Choose [3]:
 - Total steps and elapsed time (NOT token cost or API usage)
 - Structured data in consistent format (product details, links, etc.)
 - Narrative results as plain text paragraphs
+- Session log is auto-saved to `logs/` after each task; path shown in dim text
 - Option 1 starts a new task with prior session context carried forward
-- Option 2 exports a self-contained markdown summary (see section 7)
+- Option 2 displays the session summary in a panel and shows the export path
 - Option 3 exits the session
 - Default to exit (option 3)
 
@@ -489,10 +496,12 @@ I found several USB-C hubs but couldn't determine the absolute cheapest due to d
   2. Hiearcool USB C Hub 7 in 1 - £16.99
   3. Cable Matters 201053 USB-C Hub - £18.49
 
+Session log saved to: logs/browse-session-20260216-143022.md
+
 What would you like to do next?
   1. Refine the search
   2. New task (with session context)
-  3. Export session summary
+  3. View session log
   4. Exit
 
 Choose [4]:
@@ -502,9 +511,10 @@ Choose [4]:
 - Yellow warning symbol (⚠) for partial completion
 - Explain why task wasn't fully completed
 - Show what was accomplished
+- Session log is auto-saved to `logs/` after each task; path shown in dim text
 - Option 1 continues with the current task, allowing the user to refine
 - Option 2 starts a new task with prior session context carried forward
-- Option 3 exports a self-contained markdown summary (see section 7)
+- Option 3 displays the session summary in a panel and shows the export path
 - Option 4 exits the session
 - Default to exit (option 4)
 
@@ -673,9 +683,11 @@ Found 3 wireless keyboards under £50:
   2. Anker A7726 Ultra-Slim - £25.99 (4.5 stars)
   3. iClever BK10 - £33.99 (4.4 stars)
 
+Session log saved to: logs/browse-session-20260216-143022.md
+
 What would you like to do next?
   1. New task (with session context)
-  2. Export session summary
+  2. View session log
   3. Exit
 
 Choose [3]: 1
@@ -727,7 +739,7 @@ uv run python run_task.py --json "find cheapest USB-C hub on Amazon UK" | jq '.s
 
 ### Export Format
 
-Choosing "Export session summary" from the completion menu writes a self-contained markdown file to `./browse-session-YYYYMMDD-HHMMSS.md`.
+Session logs are auto-saved to `logs/browse-session-YYYYMMDD-HHMMSS.md` after each task completes. The path is shown in dim text below the results. Choosing "View session log" from the completion menu displays the summary in a panel and confirms the file path.
 
 The export contains:
 - A heading with the session date and number of tasks
@@ -916,20 +928,23 @@ Build quality comparison:
 Reviewers consistently rate the UGREEN hub higher for build quality. The
 aluminium casing and thicker cable are frequently praised.
 
+Session log saved to: logs/browse-session-20260216-143055.md
+
 What would you like to do next?
   1. New task (with session context)
-  2. Export session summary
+  2. View session log
   3. Exit
 
 Choose [3]: 2
 
-Session summary exported to: ./browse-session-20260215-143022.md
+Session summary exported to: logs/browse-session-20260216-143055.md
 
 What would you like to do next?
   1. New task (with session context)
-  2. Exit
+  2. View session log
+  3. Exit
 
-Choose [2]: 2
+Choose [3]: 3
 
 Goodbye!
 ```

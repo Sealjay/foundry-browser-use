@@ -32,3 +32,6 @@ quote-style = "double"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+markers = [
+    "type_suppression: tests that verify type: ignore suppressions are still needed",
+]

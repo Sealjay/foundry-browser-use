@@ -182,6 +182,9 @@ class BrowserCLI:
                         try:
                             await asyncio.wait_for(key_available.wait(), timeout=0.1)
                         except TimeoutError:
+                            # Exit raw mode while intervention prompts need stdin
+                            if self.state.intervention_active:
+                                break
                             continue
 
                         for kp in inp.read_keys():
@@ -195,6 +198,12 @@ class BrowserCLI:
                             break
                 finally:
                     loop.remove_reader(inp.fileno())
+
+            # Outside raw mode - wait for intervention to finish before re-entering
+            if self.state.running and self.state.intervention_active:
+                while self.state.intervention_active and self.state.running:
+                    await asyncio.sleep(0.1)
+                continue
 
             # Outside raw mode - handle instruction prompt if 'i' triggered pause
             if self.state.running and self.state.paused and self.state.pending_instruction is None:
@@ -219,7 +228,9 @@ class BrowserCLI:
         Returns:
             Tuple of (success, result, steps, elapsed, summary, structured_data, actions_log)
         """
-        config = AgentConfig(task=task, max_steps=25, use_vision=False, context_prompt=context_prompt)
+        config = AgentConfig(
+            task=task, max_steps=25, use_vision=self.state.vision_enabled, context_prompt=context_prompt
+        )
 
         self.state.running = True
         self.state.quit_requested = False
