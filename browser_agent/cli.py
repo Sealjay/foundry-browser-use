@@ -13,7 +13,7 @@ from rich.prompt import Confirm, Prompt
 
 from browser_agent.display import ResultFormatter
 from browser_agent.intervention import InterventionHandler
-from browser_agent.keyboard import AgentState, KeyHandler, build_toolbar
+from browser_agent.keyboard import AgentState, FooterManager, KeyHandler, build_toolbar
 from browser_agent.runner import AgentConfig, AgentRunner
 from browser_agent.session import Session, TaskRecord
 
@@ -30,13 +30,27 @@ class BrowserCLI:
         self.console = Console()
         self.session = Session(verbose=verbose)
         self.state = AgentState(verbose=verbose)
-        self.key_handler = KeyHandler(self.state, self.console)
         self.prompt_session: PromptSession[str] = PromptSession(
             bottom_toolbar=lambda: build_toolbar(self.state),
         )
         self.formatter = ResultFormatter(self.console)
         self.intervention_handler = InterventionHandler(self.console, state=self.state)
-        self.runner = AgentRunner(self.console, self.intervention_handler, session=self.session, state=self.state)
+        self.footer = FooterManager(self.state)
+        self.runner = AgentRunner(
+            self.console,
+            self.intervention_handler,
+            session=self.session,
+            state=self.state,
+            footer=self.footer,
+        )
+
+        # KeyHandler with immediate async callbacks for B (browser toggle)
+        # Q callback is registered dynamically per-run in run_task()
+        self.key_handler = KeyHandler(
+            self.state,
+            self.console,
+            immediate_actions={"b": self.runner.toggle_browser_immediate},
+        )
 
     def show_greeting(self) -> None:
         """Show initial greeting."""
@@ -173,6 +187,9 @@ class BrowserCLI:
                         for kp in inp.read_keys():
                             self.key_handler.handle_key(kp.data)
 
+                        # Refresh footer to reflect state changes
+                        self.footer.refresh()
+
                         # 'i' was pressed - leave raw mode to prompt for instruction
                         if self.state.paused and self.state.pending_instruction is None:
                             break
@@ -207,20 +224,33 @@ class BrowserCLI:
         self.state.running = True
         self.state.quit_requested = False
 
-        # Show keyboard shortcuts reminder
-        self.console.print("[B] Show browser  [V] More detail  [I] Instruct  [P] Pause  [Q] Quit")
-        self.console.print()
+        # Start persistent footer instead of static shortcuts line
+        self.footer.start()
 
         listener_task = asyncio.create_task(self._run_key_listener())
+        agent_task = asyncio.create_task(self.runner.run(config))
+
+        # Register Q callback that cancels the agent task immediately
+        async def _quit_immediate() -> None:
+            agent_task.cancel()
+
+        self.key_handler.immediate_actions["q"] = _quit_immediate
 
         try:
-            result = await self.runner.run(config)
+            result = await agent_task
+        except asyncio.CancelledError:
+            self.console.print()
+            self.console.print("[yellow]Task interrupted by user[/yellow]")
+            result = (False, None, self.runner.current_step, 0.0, "", {}, [])
         except KeyboardInterrupt:
             self.console.print()
             self.console.print("[yellow]Task interrupted by user[/yellow]")
             result = (False, None, self.runner.current_step, 0.0, "", {}, [])
         finally:
             self.state.running = False
+            self.footer.stop()
+            # Clean up Q callback to avoid stale task reference
+            self.key_handler.immediate_actions.pop("q", None)
             listener_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await listener_task
@@ -350,8 +380,14 @@ class BrowserCLI:
             )
             self.session.add_record(record)
 
+            # Auto-save session log after each task
+            log_path = self.session.save_to_disk()
+
             # Show results
             self.show_results(success, result, steps, elapsed, summary, structured_data, actions_log)
+
+            # Show auto-saved path in dim text
+            self.formatter.show_auto_saved_path(log_path)
 
             # Completion menu loop (export returns here)
             while True:

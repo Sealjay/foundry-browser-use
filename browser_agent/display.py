@@ -160,12 +160,12 @@ class ResultFormatter:
         if partial:
             self.console.print("  1. Refine the search")
             self.console.print("  2. New task")
-            self.console.print("  3. Export session summary")
+            self.console.print("  3. View session log")
             self.console.print("  4. Exit")
             default = "4"
         else:
             self.console.print("  1. New task")
-            self.console.print("  2. Export session summary")
+            self.console.print("  2. View session log")
             self.console.print("  3. Exit")
             default = "3"
 
@@ -216,6 +216,14 @@ class ResultFormatter:
         panel = Panel(session_markdown, title="Session Summary", border_style="blue")
         self.console.print()
         self.console.print(panel)
+
+    def show_auto_saved_path(self, filepath: str) -> None:
+        """Display the auto-saved session log path in dim text.
+
+        Args:
+            filepath: Path to the saved session log
+        """
+        self.console.print(f"[dim]Session log saved to: {filepath}[/dim]")
 
     def show_panel(self, content: str, title: str | None = None, style: str = "blue") -> None:
         """Display content in a panel.

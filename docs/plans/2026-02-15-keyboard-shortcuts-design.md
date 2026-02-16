@@ -148,3 +148,26 @@ The following behaviours should be verified to prevent regression:
 - `browser_agent/display.py` - Respect dynamic verbose from AgentState
 - `README.md` - Document keyboard shortcuts section
 - `docs/interaction-spec.md` - Add keyboard shortcut section with key reference table
+
+## Implementation updates (2026-02-16)
+
+### Immediate key response
+- `KeyHandler` now accepts `immediate_actions` dict mapping keys to async callbacks
+- Callbacks are scheduled via `asyncio.create_task()` on keypress, bypassing the step-callback delay
+- B (browser toggle) and Q (quit) fire within 1-2s instead of waiting for the next LLM call
+
+### Persistent footer
+- `FooterManager` class uses ANSI escape sequences to pin the shortcut bar to the terminal bottom row
+- Sets a scroll region excluding the last row, so agent output scrolls above the fixed footer
+- Refreshes automatically on keypress and after each agent step
+
+### macOS browser control
+- osascript `System Events` hides the browser instantly (like Cmd+H) - no Dock animation
+- osascript `activate` reliably restores minimised/hidden windows on macOS
+- CDP `setWindowBounds` kept as fallback for Linux/Windows
+- Platform guard: `platform.system() == "Darwin"` protects all osascript code paths
+
+### Auto-save session logs
+- Session logs are saved to `logs/` automatically after each task completes
+- Log path displayed in dim text after results
+- "Export session summary" renamed to "View/export session summary" in completion menu

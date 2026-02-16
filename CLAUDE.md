@@ -21,7 +21,7 @@ This project uses Browser Use with Microsoft Foundry for browser automation.
   - cli.py - Main CLI orchestrator with interactive loop
   - runner.py - Agent execution wrapper with callbacks and step tracking
   - intervention.py - Human intervention handlers for auth, CAPTCHA, choices, confirmations, stuck states, and step limits
-  - keyboard.py - Keyboard shortcuts and agent state for interactive control (AgentState, KeyHandler, build_toolbar)
+  - keyboard.py - Keyboard shortcuts, agent state, and persistent terminal footer (AgentState, KeyHandler, FooterManager, build_toolbar)
   - display.py - Result formatting and terminal output
   - session.py - Multi-turn session management with task recording and context injection
 - browse.py is the entry point for the interactive CLI

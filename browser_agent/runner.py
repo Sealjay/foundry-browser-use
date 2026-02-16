@@ -3,6 +3,7 @@
 import asyncio
 import json
 import os
+import platform
 import time
 from dataclasses import dataclass
 
@@ -17,7 +18,7 @@ from browser_agent.intervention import (
     InterventionHandler,
     InterventionType,
 )
-from browser_agent.keyboard import AgentState
+from browser_agent.keyboard import AgentState, FooterManager
 from browser_agent.session import Session
 
 STRATEGY_VARIATION_PROMPT = (
@@ -53,6 +54,7 @@ class AgentRunner:
         intervention_handler: InterventionHandler,
         session: Session | None = None,
         state: AgentState | None = None,
+        footer: FooterManager | None = None,
     ):
         """Initialise the agent runner.
 
@@ -61,11 +63,13 @@ class AgentRunner:
             intervention_handler: Handler for human interventions
             session: Optional session for multi-turn context
             state: Optional shared state for keyboard-driven control
+            footer: Optional persistent footer for shortcut bar display
         """
         self.console = console
         self.intervention_handler = intervention_handler
         self.session = session
         self.state = state
+        self.footer = footer
         self.current_step = 0
         self.max_steps = 25
         self.start_time = 0.0
@@ -79,6 +83,7 @@ class AgentRunner:
         self._last_browser_visible: bool = False
         self._agent: Agent | None = None
         self._browser_window_id: int | None = None
+        self._browser_app_name: str | None = None
 
     async def _get_browser_window_id(self) -> int | None:
         """Get the CDP window ID for the browser, caching after first call."""
@@ -107,33 +112,111 @@ class AgentRunner:
         except Exception:
             return None
 
+    def _get_browser_app_name(self) -> str | None:
+        """Get the macOS .app bundle name for the browser process.
+
+        Returns the cached name on subsequent calls. Returns None on non-Darwin platforms.
+        """
+        if platform.system() != "Darwin":
+            return None
+
+        if self._browser_app_name is not None:
+            return self._browser_app_name
+
+        try:
+            exe_path: str = self._agent.browser_session.browser.contexts[  # type: ignore[union-attr]
+                0
+            ]._impl_obj._browser._connection._transport._process.args[0]
+            from pathlib import PurePosixPath
+
+            parts = PurePosixPath(exe_path).parts
+            for part in parts:
+                if part.endswith(".app"):
+                    self._browser_app_name = part[: -len(".app")]
+                    return self._browser_app_name
+        except Exception:
+            pass
+
+        # Fallback for Chromium-based testing browsers on macOS
+        self._browser_app_name = "Google Chrome for Testing"
+        return self._browser_app_name
+
+    async def _hide_browser_macos(self, app_name: str) -> bool:
+        """Hide the browser via osascript (macOS only). Returns True on success."""
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "osascript",
+                "-e",
+                f'tell application "System Events" to set visible of process "{app_name}" to false',
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+            await asyncio.wait_for(proc.wait(), timeout=3.0)
+            return proc.returncode == 0
+        except Exception:
+            return False
+
+    async def _show_browser_macos(self, app_name: str) -> bool:
+        """Show/activate the browser via osascript (macOS only). Returns True on success."""
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "osascript",
+                "-e",
+                f'tell application "{app_name}" to activate',
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+            await asyncio.wait_for(proc.wait(), timeout=3.0)
+            return proc.returncode == 0
+        except Exception:
+            return False
+
     async def _minimize_browser(self) -> None:
-        """Minimise the browser window via CDP."""
+        """Minimise the browser window. Uses osascript on macOS, CDP elsewhere."""
+        if platform.system() == "Darwin":
+            app_name = self._get_browser_app_name()
+            if app_name and await self._hide_browser_macos(app_name):
+                return
+
+        # CDP fallback
         window_id = await self._get_browser_window_id()
         if window_id is None:
             return
-
         try:
-            cdp_client = self._agent.browser_session.cdp_client  # type: ignore[union-attr]  # _agent is non-None when window_id is obtained
+            cdp_client = self._agent.browser_session.cdp_client  # type: ignore[union-attr]
             await cdp_client.send.Browser.setWindowBounds(
                 {"windowId": window_id, "bounds": {"windowState": "minimized"}}
             )
         except Exception:
-            pass  # Graceful fallback - don't crash if CDP fails
+            pass
 
     async def _restore_browser(self) -> None:
-        """Restore the browser window from minimised state via CDP."""
+        """Restore the browser window. Uses osascript on macOS, CDP elsewhere."""
+        if platform.system() == "Darwin":
+            app_name = self._get_browser_app_name()
+            if app_name and await self._show_browser_macos(app_name):
+                return
+
+        # CDP fallback
         window_id = await self._get_browser_window_id()
         if window_id is None:
             return
-
         try:
-            cdp_client = self._agent.browser_session.cdp_client  # type: ignore[union-attr]  # _agent is non-None when window_id is obtained
-            # Must set to "normal" first, then set bounds separately
-            # (minimised/maximised/fullscreen can't combine with position/size)
+            cdp_client = self._agent.browser_session.cdp_client  # type: ignore[union-attr]
             await cdp_client.send.Browser.setWindowBounds({"windowId": window_id, "bounds": {"windowState": "normal"}})
         except Exception:
-            pass  # Graceful fallback - don't crash if CDP fails
+            pass
+
+    async def toggle_browser_immediate(self) -> None:
+        """Toggle browser visibility immediately (called from keypress callback)."""
+        if not self._agent:
+            return
+        if self.state and self.state.browser_visible:
+            await self._restore_browser()
+        else:
+            await self._minimize_browser()
+        if self.state:
+            self._last_browser_visible = self.state.browser_visible
 
     def _load_config(self) -> ChatAzureOpenAI:
         """Load Azure OpenAI configuration from environment.
@@ -373,8 +456,10 @@ class AgentRunner:
         status = self._format_step_status(step_number, description, elapsed)
         self.console.print(status)
 
-        # Show shortcuts reminder with current state
-        if self.state:
+        # Refresh persistent footer (or fall back to inline print)
+        if self.footer:
+            self.footer.refresh()
+        elif self.state:
             browser_action = "Minimise" if self.state.browser_visible else "Show"
             verbose_action = "Less detail" if self.state.verbose else "More detail"
             pause_action = "Resume" if self.state.paused else "Pause"
@@ -612,6 +697,7 @@ class AgentRunner:
             self._repetition_warnings = 0
             self.step_times = {}
             self._browser_window_id = None
+            self._browser_app_name = None
 
             # Load Azure OpenAI configuration
             llm = self._load_config()
