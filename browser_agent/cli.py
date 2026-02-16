@@ -118,8 +118,8 @@ class BrowserCLI:
         )
 
         try:
-            response = await llm.ainvoke([HumanMessage(content=prompt)])
-            text = response.content if hasattr(response, "content") else str(response)
+            response = await llm.ainvoke([HumanMessage(content=prompt)])  # type: ignore[arg-type]  # HumanMessage is a BaseMessage subclass; Pylance can't resolve langchain's type hierarchy
+            text = response.content if hasattr(response, "content") else str(response)  # type: ignore[union-attr]  # content exists on AIMessage at runtime
 
             if "NONE" in text.upper() or not text.strip():
                 return task

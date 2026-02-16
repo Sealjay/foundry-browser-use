@@ -114,7 +114,7 @@ class AgentRunner:
             return
 
         try:
-            cdp_client = self._agent.browser_session.cdp_client
+            cdp_client = self._agent.browser_session.cdp_client  # type: ignore[union-attr]  # _agent is non-None when window_id is obtained
             await cdp_client.send.Browser.setWindowBounds(
                 {"windowId": window_id, "bounds": {"windowState": "minimized"}}
             )
@@ -128,7 +128,7 @@ class AgentRunner:
             return
 
         try:
-            cdp_client = self._agent.browser_session.cdp_client
+            cdp_client = self._agent.browser_session.cdp_client  # type: ignore[union-attr]  # _agent is non-None when window_id is obtained
             # Must set to "normal" first, then set bounds separately
             # (minimised/maximised/fullscreen can't combine with position/size)
             await cdp_client.send.Browser.setWindowBounds({"windowId": window_id, "bounds": {"windowState": "normal"}})
@@ -173,7 +173,7 @@ class AgentRunner:
         if api_version:
             model_config["api_version"] = api_version
 
-        return ChatAzureOpenAI(**model_config)
+        return ChatAzureOpenAI(**model_config)  # type: ignore[arg-type]  # pydantic coerces string values from env vars at runtime
 
     def _format_step_status(self, step_number: int, description: str, elapsed: float | None = None) -> str:
         """Format step status line.
@@ -312,11 +312,11 @@ class AgentRunner:
                     return False
         return True
 
-    async def _step_callback(self, browser_state, agent_output, step_number: int) -> None:
+    async def _step_callback(self, _browser_state, agent_output, step_number: int) -> None:
         """Callback for each agent step.
 
         Args:
-            browser_state: Current browser state
+            _browser_state: Current browser state (unused; required by callback signature)
             agent_output: Agent output for this step
             step_number: Current step number
         """
@@ -527,12 +527,8 @@ class AgentRunner:
             if response.new_instructions:
                 self.console.print("[yellow]Wrap up requested but not yet implemented[/yellow]")
 
-    async def _done_callback(self, history) -> None:
-        """Callback when agent completes.
-
-        Args:
-            history: Agent execution history
-        """
+    async def _done_callback(self, _history) -> None:
+        """Callback when agent completes."""
         # The CLI layer will handle result display
         pass
 
@@ -565,8 +561,8 @@ class AgentRunner:
         )
 
         try:
-            response = await llm.ainvoke([HumanMessage(content=prompt)])
-            text = response.content if hasattr(response, "content") else str(response)
+            response = await llm.ainvoke([HumanMessage(content=prompt)])  # type: ignore[arg-type]  # HumanMessage is a BaseMessage subclass; Pylance can't resolve langchain's type hierarchy
+            text = response.content if hasattr(response, "content") else str(response)  # type: ignore[union-attr]  # content exists on AIMessage at runtime
 
             # Parse SUMMARY and DATA from the response
             summary = ""
@@ -632,7 +628,7 @@ class AgentRunner:
             # window_size prevents --start-maximized being added automatically.
             browser_profile = BrowserProfile(
                 window_position=None,
-                window_size={"width": 1280, "height": 900},
+                window_size={"width": 1280, "height": 900},  # type: ignore[arg-type]  # browser-use accepts plain dicts for ViewportSize
             )
 
             # Create agent with callbacks
@@ -668,7 +664,7 @@ class AgentRunner:
             elif isinstance(result, str):
                 result_text = result
             elif hasattr(result, "text"):
-                result_text = result.text
+                result_text = result.text  # type: ignore[union-attr]  # guarded by hasattr check above
 
             # Generate summary via additional LLM call
             summary, structured_data = await self._generate_summary(llm, config.task, result_text)

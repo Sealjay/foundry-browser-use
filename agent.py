@@ -48,14 +48,14 @@ async def main() -> None:
         azure_deployment=deployment_name,
         api_version=api_version,
         azure_endpoint=endpoint,
-        api_key=api_key,
+        api_key=api_key,  # type: ignore[arg-type]  # pydantic coerces str to SecretStr at runtime
         temperature=0.0,
     )
 
     # Create browser automation agent
     agent = Agent(
         task="Go to google.com and search for 'Browser Use python automation'",
-        llm=llm,
+        llm=llm,  # type: ignore[arg-type]  # AzureChatOpenAI is a BaseChatModel subclass; Pylance can't resolve langchain's type hierarchy
         use_vision=False,  # DOM-only mode for faster execution
         max_steps=25,  # Safety cap to prevent runaway execution
     )
