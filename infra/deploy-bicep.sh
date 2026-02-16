@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Azure OpenAI deployment script using Bicep
+# Microsoft Foundry deployment script using Bicep
 # Usage: ./deploy-bicep.sh <resource-group> [location]
 # Example: ./deploy-bicep.sh rg-browser-agent uksouth
 
@@ -25,7 +25,7 @@ API_VERSION="2024-12-01-preview"
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "Deploying Azure OpenAI resources using Bicep..."
+echo "Deploying Microsoft Foundry resources using Bicep..."
 echo "Resource Group: ${RESOURCE_GROUP}"
 echo "Location: ${LOCATION}"
 echo ""
@@ -43,6 +43,7 @@ DEPLOYMENT_OUTPUT=$(az deployment group create \
   --resource-group "${RESOURCE_GROUP}" \
   --template-file "${SCRIPT_DIR}/main.bicep" \
   --parameters "${SCRIPT_DIR}/main.bicepparam" \
+  --parameters location="${LOCATION}" \
   --query "properties.outputs" \
   --output json)
 

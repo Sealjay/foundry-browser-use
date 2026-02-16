@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This project uses Browser Use with Azure OpenAI for browser automation.
+This project uses Browser Use with Microsoft Foundry for browser automation.
 
 ## Commands
 - Deploy infra (CLI): `./infra/deploy.sh <resource-group> [location] [account-name]`
@@ -13,9 +13,9 @@ This project uses Browser Use with Azure OpenAI for browser automation.
 - Format: `uv run ruff format .`
 
 ## Architecture
-- infra/ contains Azure CLI and Bicep deployment scripts for the OpenAI resource
+- infra/ contains Azure CLI and Bicep deployment scripts for the Foundry resource
 - browser-use handles Playwright browser control and DOM extraction
-- ChatAzureOpenAI (from browser_use) provides the LLM interface to Azure OpenAI
+- ChatAzureOpenAI (from browser_use) provides the LLM interface to Azure OpenAI via a Foundry resource
 - DOM-only mode (use_vision=False) is default for speed and cost efficiency
 - browser_agent/ contains the interactive CLI implementation:
   - cli.py - Main CLI orchestrator with interactive loop

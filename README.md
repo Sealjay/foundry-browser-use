@@ -1,8 +1,20 @@
 # foundry-browser-use
 
-Interactive AI browser automation using Browser Use and Microsoft Foundry. Natural language browser agent with intelligent intervention points for authentication, verification, and confirmation. DOM-first Playwright agent powered by Azure OpenAI models for fast, low-cost web task automation.
+[![Python](https://img.shields.io/badge/Python-3.12+-3776AB?logo=python&logoColor=ffffff)](https://www.python.org/)
+[![Microsoft Foundry](https://img.shields.io/badge/Microsoft_Foundry-0078D4?logo=microsoftazure&logoColor=ffffff)](https://learn.microsoft.com/azure/ai-foundry/what-is-foundry?WT.mc_id=AI-MVP-5004204)
+[![Playwright](https://img.shields.io/badge/Playwright-2EAD33?logo=playwright&logoColor=ffffff)](https://playwright.dev/)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![License: MIT](https://img.shields.io/github/license/Sealjay/foundry-browser-use)](LICENCE)
+[![GitHub issues](https://img.shields.io/github/issues/Sealjay/foundry-browser-use)](https://github.com/Sealjay/foundry-browser-use/issues)
+[![GitHub stars](https://img.shields.io/github/stars/Sealjay/foundry-browser-use?style=social)](https://github.com/Sealjay/foundry-browser-use)
+
+Interactive AI browser automation using [Browser Use](https://github.com/browser-use/browser-use) and [Microsoft Foundry](https://learn.microsoft.com/azure/ai-foundry/what-is-foundry?WT.mc_id=AI-MVP-5004204). Natural language browser agent with human-in-the-loop intervention points for authentication, verification, and confirmation. DOM-first Playwright agent powered by OpenAI models on Microsoft Foundry for web task automation.
+
+Microsoft Foundry provides managed OpenAI model hosting on Azure with enterprise features like quota management, regional deployment, and integration with Azure's identity and networking stack.
 
 ## Quick start
+
+> **Requires Azure setup first.** You'll need a Microsoft Foundry deployment before running the agent - see [Setup](#setup) below.
 
 ```bash
 uv run python browse.py
@@ -12,21 +24,19 @@ uv run python browse.py
 Browse - AI browser automation
 
 What would you like to do?
-> Go to amazon.co.uk and find the cheapest USB-C hub with at least 4 ports
+> Check bbc.co.uk for the top 5 news stories and list them out
 ```
 
-The agent autonomously navigates, searches, and extracts information, pausing only when it needs your help with authentication, verification, or important decisions.
-
-> First time? See [Setup](#setup) for installation and Azure deployment instructions.
+The agent navigates, searches, and extracts information, pausing when it needs your help with authentication, verification, or important decisions.
 
 ## Interactive mode
 
 `browse.py` provides an interactive CLI for natural language browser automation. The agent works autonomously, showing real-time progress updates:
 
 ```
-Step 1/25: Opening amazon.co.uk (1.2s)
-Step 2/25: Searching for 'USB-C hub 4 ports' (0.8s)
-Step 3/25: Clicking 'Search' (0.6s)
+Step 1/25: Opening bbc.co.uk (1.2s)
+Step 2/25: Navigating to News section (0.8s)
+Step 3/25: Extracting top headlines (0.6s)
 ```
 
 The agent pauses for human input only when necessary (authentication, CAPTCHA, ambiguous choices, or confirmation before actions like purchases). When the task completes, you'll see structured results and options to continue or exit.
@@ -49,16 +59,23 @@ The browser starts hidden (headed but offscreen) and auto-shows when authenticat
 
 The agent requests human input in these situations:
 
+**Security and verification:**
 - **Authentication required** - Login pages or session timeouts (you log in manually in the browser)
 - **CAPTCHA/verification** - Human verification challenges (you solve the CAPTCHA)
+
+**Decision making:**
 - **Ambiguous choice** - Multiple valid options where the agent cannot determine which to choose (you select from a numbered list)
 - **Confirmation before action** - Destructive or significant actions like purchases, form submissions, or deletions (you confirm or cancel)
+- **Confidence check** - When the agent is uncertain about a finding or next step, it pauses and asks you to decide
+
+**Progress management:**
 - **Agent stuck** - After 3 consecutive failures, the agent asks if you want to retry, get a page description, provide new instructions, or abort
 - **Approaching max steps** - At 80% of the step limit, you can increase the limit, wrap up, or stop
 - **Progress checkpoint** - At major phase transitions (e.g. searching to comparing), the agent shows a brief progress summary and asks whether to continue or adjust
-- **Confidence check** - When the agent is uncertain about a finding or next step, it pauses and asks you to decide
-- **Sub-goal summary** - When a sub-goal completes, the agent shows a mini-summary and asks "what next?"
+
+**Planning:**
 - **Batched upfront questions** - Before starting, the agent analyses your task for likely ambiguities and asks 0-3 clarifying questions up front to minimise interruptions
+- **Sub-goal summary** - When a sub-goal completes, the agent shows a mini-summary and asks "what next?"
 
 The terminal bell rings when the agent needs your attention (works with iTerm2 and most terminals).
 
@@ -106,9 +123,12 @@ After any task, choose "Export session summary" to save a self-contained markdow
 ### Prerequisites
 
 - Python 3.12+
-- UV package manager
-- Azure CLI installed and logged in (`az login`)
-- Azure subscription with OpenAI access
+- [UV](https://docs.astral.sh/uv/) package manager (`curl -LsSf https://astral.sh/uv/install.sh | sh`)
+- [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli?WT.mc_id=AI-MVP-5004204) installed and logged in (`az login`)
+- Azure subscription with access to deploy Microsoft Foundry (AI Services) resources
+- **Platform**: Developed and tested on macOS with iTerm2. Linux should work with minor adjustments. Windows users will need WSL or Git Bash for the deployment scripts. Terminal bell notifications work best with iTerm2.
+
+> **Cost note**: Running tasks costs roughly $0.01-0.05 per simple task using GPT-4.1-mini. See [Cost and capacity](#cost-and-capacity) for details.
 
 ### Installation
 
@@ -133,7 +153,7 @@ uv run playwright install chromium
 
 ### Deploy Azure infrastructure
 
-Deploy an Azure OpenAI resource to `rg-browser-agent` in `uksouth`:
+Deploy a [Microsoft Foundry resource](https://learn.microsoft.com/azure/ai-foundry/openai/how-to/create-resource?WT.mc_id=AI-MVP-5004204) to `rg-browser-agent` in `uksouth`:
 
 **Option A: Azure CLI deployment**
 
@@ -141,22 +161,24 @@ Deploy an Azure OpenAI resource to `rg-browser-agent` in `uksouth`:
 ./infra/deploy.sh rg-browser-agent uksouth oai-foundry-browser
 ```
 
-**Option B: Bicep deployment**
+**Option B: [Bicep](https://learn.microsoft.com/azure/azure-resource-manager/bicep/overview?WT.mc_id=AI-MVP-5004204) deployment**
 
 ```bash
 ./infra/deploy-bicep.sh rg-browser-agent
 ```
 
-Both scripts will output environment variable values - copy these to your `.env` file.
+Both scripts will output environment variable values - copy these to your `.env` file. When you're done, remember to [tear down](#teardown) these resources to avoid ongoing charges.
 
 ### Configure .env
 
-Copy `.env.example` to `.env` and fill in your Azure OpenAI credentials from the deployment output:
+Copy `.env.example` to `.env` and fill in your Microsoft Foundry credentials from the deployment output:
 
 ```bash
 cp .env.example .env
-# Edit .env with your Azure OpenAI endpoint, API key, and deployment name
+# Edit .env with your Foundry endpoint, API key, and deployment name
 ```
+
+> **Security note**: Never commit `.env` to version control (already in `.gitignore`). On shared machines, restrict permissions: `chmod 600 .env`.
 
 ## Usage
 
@@ -180,23 +202,25 @@ The agent can be configured with the following parameters:
 
 - `use_vision`: Set to `False` (default) for DOM-only mode, or `True` to include screenshots. DOM-only mode is significantly faster and more cost-effective.
 - `max_steps`: Maximum number of steps the agent can take (default: 25 in interactive mode, 10 in scripting mode)
-- `model`: Swap between different Azure OpenAI models by changing `AZURE_OPENAI_DEPLOYMENT_NAME` in `.env`
+- `model`: Swap between different OpenAI models on Microsoft Foundry by changing `AZURE_OPENAI_DEPLOYMENT_NAME` in `.env`
 
 When using the interactive CLI (`browse.py`), the agent starts with 25 steps and offers to increase the limit if needed.
 
-See [Azure OpenAI documentation](https://learn.microsoft.com/azure/ai-foundry/openai/?WT.mc_id=AI-MVP-5004204) for available models and deployment guidance.
+See [Microsoft Foundry model documentation](https://learn.microsoft.com/azure/ai-foundry/openai/?WT.mc_id=AI-MVP-5004204) for available models and deployment guidance.
 
-### Telemetry
+### Privacy and telemetry
 
-The browser-use library sends anonymous usage data to PostHog by default. This project disables telemetry in `.env.example` because browser automation tasks can involve sensitive sites and workflows, and users should opt in to data collection rather than opt out. To disable telemetry, set `ANONYMIZED_TELEMETRY=false` in your `.env` file (already included in `.env.example`).
+> **Important**: The browser-use library sends anonymous usage data to PostHog by default. This project **disables telemetry** in `.env.example` because browser automation tasks can involve sensitive sites and workflows. Ensure `ANONYMIZED_TELEMETRY=false` is set in your `.env` file (already included in `.env.example`).
 
 ## Cost and capacity
 
-GPT-4.1-mini pricing: ~$0.40 per 1M input tokens, ~$1.60 per 1M output tokens (~$0.77/hour or ~£0.57/hour). Remember to tear down your Azure resources when not in use to avoid ongoing costs.
+Pricing is indicative only and subject to change. For current rates, see the [Azure Pricing Calculator](https://azure.microsoft.com/pricing/calculator/?WT.mc_id=AI-MVP-5004204). As a rough guide (as of February 2025), GPT-4.1-mini costs approximately $0.40 per 1M input tokens and $1.60 per 1M output tokens. Actual costs vary based on task complexity, context size, and Azure region.
+
+> **Tear down when idle**: Run `./infra/teardown.sh rg-browser-agent` when you're finished to stop all charges. The agent can consume quota quickly during multi-step tasks.
 
 ### TPM (tokens per minute)
 
-The deployment scripts default to 150K TPM (GlobalStandard SKU). Browser automation is token-heavy - each step sends DOM content plus conversation history, so a single task can consume 10-50K tokens. With multi-turn sessions the context grows further. If you hit rate limits (HTTP 429), increase your TPM allocation in the Azure portal or via the deployment scripts. The Azure CLI deployment accepts `--sku-capacity` and the Bicep template has a `skuCapacity` parameter.
+The deployment scripts default to 150K [TPM](https://learn.microsoft.com/azure/ai-foundry/openai/how-to/quota?WT.mc_id=AI-MVP-5004204) (GlobalStandard SKU). Browser automation is token-heavy - each step sends DOM content plus conversation history, so a single task can consume 10-50K tokens. With multi-turn sessions the context grows further. If you hit rate limits (HTTP 429), increase your TPM allocation in the Azure portal or via the deployment scripts. The Azure CLI deployment accepts `--sku-capacity` and the Bicep template has a `skuCapacity` parameter.
 
 ## Teardown
 
@@ -219,6 +243,7 @@ foundry-browser-use/
     cli.py                   #   CLI orchestrator
     runner.py                #   Agent execution wrapper
     intervention.py          #   Human intervention handlers
+    keyboard.py              #   Keyboard shortcuts and agent state
     display.py               #   Result formatting
     session.py               #   Multi-turn session context
   infra/                     # Azure deployment scripts
@@ -229,6 +254,12 @@ foundry-browser-use/
   docs/
     interaction-spec.md      #   UX specification
 ```
+
+## Limitations
+
+- **DOM-only mode** works best on content-heavy and form-based sites. Modern SPAs with heavily obfuscated DOMs, Shadow DOM, or Canvas/WebGL rendering may not parse well. Enable `use_vision=True` for visually complex pages at the cost of speed and tokens.
+- **Anti-bot measures**: Many websites detect and block browser automation. The agent pauses for CAPTCHAs, but persistent blocking or account flagging is possible. Respect target sites' terms of service.
+- **Platform**: Built and tested on macOS. Shell scripts, terminal features (bell, toolbar), and Playwright window positioning may behave differently on Linux or Windows/WSL.
 
 ## Contributing
 

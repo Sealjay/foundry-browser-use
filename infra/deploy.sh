@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Azure OpenAI deployment script using Azure CLI
+# Microsoft Foundry deployment script using Azure CLI
 # Usage: ./deploy.sh <resource-group> [location] [account-name]
 # Example: ./deploy.sh rg-browser-agent uksouth oai-foundry-browser
 
@@ -20,7 +20,7 @@ MODEL_NAME="gpt-4.1-mini"
 MODEL_VERSION="2025-04-14"
 API_VERSION="2024-12-01-preview"
 
-echo "Deploying Azure OpenAI resources..."
+echo "Deploying Microsoft Foundry resources..."
 echo "Resource Group: ${RESOURCE_GROUP}"
 echo "Location: ${LOCATION}"
 echo "Account Name: ${ACCOUNT_NAME}"
@@ -34,14 +34,16 @@ az group create \
   --location "${LOCATION}" \
   --output none
 
-# Create Azure OpenAI account (idempotent)
-echo "Creating Azure OpenAI account..."
+# Create Microsoft Foundry account (idempotent)
+echo "Creating Microsoft Foundry account..."
 az cognitiveservices account create \
   --name "${ACCOUNT_NAME}" \
   --resource-group "${RESOURCE_GROUP}" \
   --location "${LOCATION}" \
-  --kind OpenAI \
+  --kind AIServices \
   --sku S0 \
+  --custom-domain "${ACCOUNT_NAME}" \
+  --identity-type SystemAssigned \
   --yes \
   --output none
 
