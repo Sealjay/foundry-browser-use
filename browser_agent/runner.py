@@ -87,14 +87,20 @@ class AgentRunner:
         self._browser_app_name: str | None = None
         self._vision_suggested: bool = False
 
-    def _run_intervention(self, context: InterventionContext) -> InterventionResponse:
+    async def _run_intervention(self, context: InterventionContext) -> InterventionResponse:
         """Run an intervention with footer suspended and raw mode released.
 
         Sets intervention_active so the key listener exits raw mode,
-        suspends the footer so prompts render normally, then restores both.
+        yields to let it do so, suspends the footer so prompts render
+        normally, then restores both.
         """
         if self.state:
             self.state.intervention_active = True
+
+        # Yield to the event loop so the key listener task can see
+        # intervention_active and exit raw mode before we read stdin.
+        await asyncio.sleep(0.15)
+
         if self.footer:
             self.footer.stop()
 
@@ -512,7 +518,7 @@ class AgentRunner:
                 max_steps=self.max_steps,
                 confidence_detail=f"The agent seems uncertain: {evaluation_text}",
             )
-            response = self._run_intervention(context)
+            response = await self._run_intervention(context)
 
             if not response.continue_execution:
                 raise KeyboardInterrupt("User aborted at confidence check")
@@ -534,7 +540,7 @@ class AgentRunner:
                 max_steps=self.max_steps,
                 progress_summary=f"Sub-goal reached at step {step_number}. Recent actions: {actions_so_far}",
             )
-            response = self._run_intervention(context)
+            response = await self._run_intervention(context)
 
             if not response.continue_execution:
                 raise KeyboardInterrupt("User stopped at sub-goal")
@@ -554,7 +560,7 @@ class AgentRunner:
                     f"({self._last_phase}). Recent actions: {actions_so_far}"
                 ),
             )
-            response = self._run_intervention(context)
+            response = await self._run_intervention(context)
 
             if not response.continue_execution:
                 raise KeyboardInterrupt("User stopped at checkpoint")
@@ -580,7 +586,7 @@ class AgentRunner:
                         f"Recent actions: {'; '.join(self.actions_log[-3:])}"
                     ),
                 )
-                response = self._run_intervention(context)
+                response = await self._run_intervention(context)
 
                 if not response.continue_execution:
                     raise KeyboardInterrupt("User aborted at repetition check")
@@ -602,7 +608,7 @@ class AgentRunner:
                 max_steps=self.max_steps,
                 message=f"I tried to {description} but couldn't complete the action.",
             )
-            response = self._run_intervention(context)
+            response = await self._run_intervention(context)
 
             if not response.continue_execution:
                 raise KeyboardInterrupt("User aborted task")
@@ -633,7 +639,7 @@ class AgentRunner:
                 step_number=step_number,
                 max_steps=self.max_steps,
             )
-            response = self._run_intervention(context)
+            response = await self._run_intervention(context)
 
             if not response.continue_execution:
                 raise KeyboardInterrupt("User stopped task at step limit")
