@@ -10,6 +10,8 @@
 
 Interactive AI browser automation using [Browser Use](https://github.com/browser-use/browser-use) and [Microsoft Foundry](https://learn.microsoft.com/azure/ai-foundry/what-is-foundry?WT.mc_id=AI-MVP-5004204). Natural language browser agent with human-in-the-loop intervention points for authentication, verification, and confirmation. DOM-first agent powered by OpenAI models on Microsoft Foundry, controlling Chromium directly via CDP (Chrome DevTools Protocol) for web task automation.
 
+> **Read the accompanying blog post**: [Building a Browser Agent with Microsoft Foundry and Browser Use](https://sealjay.com/blog/foundry-browser-use/)
+
 Microsoft Foundry provides managed OpenAI model hosting on Azure with enterprise features like quota management, regional deployment, and integration with Azure's identity and networking stack.
 
 ## Quick start
