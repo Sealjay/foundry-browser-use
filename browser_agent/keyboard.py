@@ -73,7 +73,7 @@ class KeyHandler:
         elif key == "f":
             self.state.vision_enabled = not self.state.vision_enabled
             status = "on" if self.state.vision_enabled else "off"
-            self.console.print(f"[dim]Vision mode: {status} (takes effect on next task)[/dim]")
+            self.console.print(f"[yellow]Vision mode: {status} (takes effect on next task)[/yellow]")
         elif key == "q":
             self.state.quit_requested = True
 
