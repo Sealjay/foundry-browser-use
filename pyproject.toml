@@ -7,7 +7,7 @@ dependencies = [
     "browser-use>=0.11.9",
     "langchain-openai>=1.1.14",
     "playwright>=1.58.0",
-    "python-dotenv>=1.2.1",
+    "python-dotenv>=1.2.2",
     "rich>=14.3.2",
     "prompt-toolkit>=3.0.50",
 ]
