@@ -151,9 +151,11 @@ class AgentRunner:
             return self._browser_app_name
 
         try:
-            exe_path: str = self._agent.browser_session.browser.contexts[  # type: ignore[union-attr]
-                0
-            ]._impl_obj._browser._connection._transport._process.args[0]
+            # browser-use >=0.13 launches the browser as a raw subprocess over CDP
+            # (no more Playwright Browser wrapper on browser_session), tracked as a
+            # psutil.Process by the session's local browser watchdog.
+            watchdog = self._agent.browser_session._local_browser_watchdog  # type: ignore[union-attr]
+            exe_path: str = watchdog._subprocess.exe()
             from pathlib import PurePosixPath
 
             parts = PurePosixPath(exe_path).parts
@@ -758,11 +760,11 @@ class AgentRunner:
             )
 
             # Create agent with callbacks
+            # max_steps moved from Agent() to Agent.run() in browser-use 0.13+.
             agent = Agent(
                 task=full_task,
                 llm=llm,
                 browser_profile=browser_profile,
-                max_steps=self.max_steps,
                 use_vision=config.use_vision,
                 register_new_step_callback=self._step_callback,
                 register_done_callback=self._done_callback,
@@ -777,7 +779,7 @@ class AgentRunner:
                 await self._minimize_browser()
             self.console.print()
 
-            result = await agent.run()
+            result = await agent.run(max_steps=self.max_steps)
 
             # Calculate metrics
             elapsed = time.time() - self.start_time

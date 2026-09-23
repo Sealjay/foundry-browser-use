@@ -4,7 +4,7 @@ version = "0.1.1"
 description = "AI browser automation using Browser Use and Microsoft Foundry"
 requires-python = ">=3.12"
 dependencies = [
-    "browser-use>=0.11.9",
+    "browser-use>=0.13.10",
     "langchain-openai>=1.1.14",
     "playwright>=1.58.0",
     "python-dotenv>=1.2.2",
@@ -22,12 +22,14 @@ dev = [
 
 [tool.uv]
 # Transitive floors to close Dependabot alerts without an uncontrolled resolve.
-# mcp is capped below 2.0: that's a from-scratch rewrite (FastMCP -> MCPServer,
-# httpx -> httpx2, session model replaced) that browser-use 0.11.9 was never
-# built against. The MCP SDK maintainers themselves say to pin <2 until ready
-# to migrate: https://github.com/modelcontextprotocol/python-sdk/releases/tag/v2.0.0
+# mcp was capped below 2.0 while browser-use pinned to 1.x (that SDK major is a
+# from-scratch rewrite: FastMCP -> MCPServer, httpx -> httpx2, session model
+# replaced). browser-use>=0.13.10 now exact-pins mcp==2.1.1 itself and its
+# release notes say it was validated against it (full test matrix, MCP stdio
+# handshakes), so the cap is dropped -- browser-use's own pin is now the
+# authority on which mcp major is safe here, not this floor.
 constraint-dependencies = [
-    "mcp>=1.28.1,<2",
+    "mcp>=1.28.1",
     "pillow>=12.3.0",
     "aiohttp>=3.14.3",
     "cryptography>=50.0.0",
@@ -35,6 +37,14 @@ constraint-dependencies = [
     "pyasn1>=0.6.4",
     "pypdf>=6.16.1",
     "soupsieve>=2.9.0",
+]
+# browser-use>=0.13.10 exact-pins anyio==4.12.1, below the patched floor for a
+# CRITICAL advisory (GHSA-82r6-8w77-94w6, fixed in 4.14.2). Unlike mcp above,
+# nothing needs anyio==4.12.1 specifically -- mcp==2.1.1 only requires
+# anyio>=4.9 -- so a constraint can't help here (it can only narrow a range,
+# and browser-use's own range is a single exact point below our floor);
+# override-dependencies replaces browser-use's declared pin outright.
+override-dependencies = [
     "anyio>=4.14.2",
 ]
 

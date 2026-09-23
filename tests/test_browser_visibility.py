@@ -1,6 +1,7 @@
 """Tests for browser visibility toggling and BrowserProfile construction."""
 
 import io
+import platform
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from rich.console import Console
@@ -48,6 +49,27 @@ def test_browser_profile_window_size() -> None:
     assert profile.window_size is not None
     assert profile.window_size["width"] == 1280
     assert profile.window_size["height"] == 900
+
+
+def test_get_browser_app_name_reads_watchdog_subprocess() -> None:
+    """_get_browser_app_name resolves the .app bundle via the local browser
+    watchdog's psutil.Process, not browser_session.browser (removed in
+    browser-use 0.13: BrowserSession launches the browser as a raw CDP
+    subprocess now, there's no Playwright Browser wrapper to reach into
+    any more -- see runner.py:_get_browser_app_name).
+    """
+    runner = _make_runner()
+    runner._agent = MagicMock()
+    runner._agent.browser_session._local_browser_watchdog._subprocess.exe.return_value = (
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    )
+
+    name = runner._get_browser_app_name()
+
+    if platform.system() == "Darwin":
+        assert name == "Google Chrome"
+    else:
+        assert name is None
 
 
 def test_toggle_browser_visible_calls_restore() -> None:

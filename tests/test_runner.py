@@ -150,3 +150,22 @@ def test_format_step_status_no_elapsed() -> None:
     runner.max_steps = 25
     status = runner._format_step_status(1, "Starting", elapsed=0.5)
     assert "0.5s" not in status  # Below 1.0s threshold
+
+
+# --- Upstream API shape guards ---
+
+
+def test_agent_run_still_accepts_max_steps() -> None:
+    """max_steps moved from Agent() to Agent.run() in browser-use 0.13+.
+
+    Agent.__init__ has a silent **kwargs catch-all, so passing max_steps=
+    there raises nothing and just discards it -- the safety step cap would
+    silently vanish rather than error. runner.py and agent.py both now pass
+    it to agent.run(...) instead; guard that assumption so a future
+    browser-use bump that moves it again fails loudly here first.
+    """
+    import inspect
+
+    from browser_use import Agent
+
+    assert "max_steps" in inspect.signature(Agent.run).parameters

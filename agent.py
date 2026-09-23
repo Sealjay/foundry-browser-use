@@ -53,15 +53,15 @@ async def main() -> None:
     )
 
     # Create browser automation agent
+    # max_steps moved from Agent() to Agent.run() in browser-use 0.13+.
     agent = Agent(
         task="Go to google.com and search for 'Browser Use python automation'",
         llm=llm,  # type: ignore[arg-type]  # AzureChatOpenAI is a BaseChatModel subclass; Pylance can't resolve langchain's type hierarchy
         use_vision=False,  # DOM-only mode for faster execution
-        max_steps=25,  # Safety cap to prevent runaway execution
     )
 
     # Execute the agent and retrieve results
-    result = await agent.run()
+    result = await agent.run(max_steps=25)  # Safety cap to prevent runaway execution
     print(result.final_result())
 
 
