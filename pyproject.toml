@@ -20,6 +20,24 @@ dev = [
     "pytest-asyncio",
 ]
 
+[tool.uv]
+# Transitive floors to close Dependabot alerts without an uncontrolled resolve.
+# mcp is capped below 2.0: that's a from-scratch rewrite (FastMCP -> MCPServer,
+# httpx -> httpx2, session model replaced) that browser-use 0.11.9 was never
+# built against. The MCP SDK maintainers themselves say to pin <2 until ready
+# to migrate: https://github.com/modelcontextprotocol/python-sdk/releases/tag/v2.0.0
+constraint-dependencies = [
+    "mcp>=1.28.1,<2",
+    "pillow>=12.3.0",
+    "aiohttp>=3.14.3",
+    "cryptography>=50.0.0",
+    "httplib2>=0.32.0",
+    "pyasn1>=0.6.4",
+    "pypdf>=6.16.1",
+    "soupsieve>=2.9.0",
+    "anyio>=4.14.2",
+]
+
 [tool.ruff]
 target-version = "py312"
 line-length = 120
