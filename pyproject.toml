@@ -1,6 +1,6 @@
 [project]
 name = "foundry-browser-use"
-version = "0.1.0"
+version = "0.1.1"
 description = "AI browser automation using Browser Use and Microsoft Foundry"
 requires-python = ">=3.12"
 dependencies = [
