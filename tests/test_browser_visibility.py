@@ -28,14 +28,26 @@ def test_browser_profile_no_window_position() -> None:
 
 
 def test_browser_profile_window_size() -> None:
-    """BrowserProfile accepts a dict for window_size."""
+    """BrowserProfile accepts a dict for window_size and preserves it in headful mode.
+
+    BrowserProfile.detect_display_configuration() auto-detects headless=True
+    when no display is available (e.g. CI runners with no X server) and
+    clears window_size in that mode, since headless Chromium has no OS
+    window to size. The app always runs headful (browser_agent/runner.py
+    starts the browser headed, then minimises it via CDP), so pin
+    headless=False here to exercise that same path deterministically
+    instead of depending on whatever display the test happens to run on.
+    """
     from browser_use.browser.profile import BrowserProfile
 
     profile = BrowserProfile(
+        headless=False,
         window_size={"width": 1280, "height": 900},  # type: ignore[arg-type]
     )
-    # Should have been accepted (pydantic coercion or plain dict)
+    # Accepted and coerced (pydantic ViewportSize), values preserved.
     assert profile.window_size is not None
+    assert profile.window_size["width"] == 1280
+    assert profile.window_size["height"] == 900
 
 
 def test_toggle_browser_visible_calls_restore() -> None:
