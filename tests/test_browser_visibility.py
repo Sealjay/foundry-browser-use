@@ -82,7 +82,7 @@ def test_toggle_browser_visible_calls_restore() -> None:
 
     import asyncio
 
-    asyncio.get_event_loop().run_until_complete(runner.toggle_browser_immediate())
+    asyncio.run(runner.toggle_browser_immediate())
     runner._restore_browser.assert_called_once()
     runner._minimize_browser.assert_not_called()
 
@@ -97,7 +97,7 @@ def test_toggle_browser_visible_calls_minimize() -> None:
 
     import asyncio
 
-    asyncio.get_event_loop().run_until_complete(runner.toggle_browser_immediate())
+    asyncio.run(runner.toggle_browser_immediate())
     runner._minimize_browser.assert_called_once()
     runner._restore_browser.assert_not_called()
 
